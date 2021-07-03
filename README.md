@@ -13,7 +13,7 @@
 
 ## Hands-on Labs
 - [1.SageMaker Debugger Profiler](1.profiling)
-- [2.SageMaker Distributed Data Parallelism w/ Debugger Profiler - Fashion MNIST dataset](2.sdp-with-debugger-fashin-mnist)
+- [2.SageMaker Distributed Data Parallelism w/ Debugger Profiler - Fashion MNIST dataset](2.sdp-with-debugger-fashion-mnist)
 
 ## References
 - TensorFlow Profiling: https://github.com/aws/amazon-sagemaker-examples/tree/master/sagemaker-debugger/tensorflow_profiling 
