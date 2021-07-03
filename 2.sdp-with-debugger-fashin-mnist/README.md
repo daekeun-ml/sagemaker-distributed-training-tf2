@@ -11,4 +11,4 @@
 
 ## License
 
-This library is licensed under the MIT-0 License. See the LICENSE file.
+이 샘플 코드는 MIT-0 라이센스에 따라 제공됩니다. LICENSE 파일을 참조하십시오.
