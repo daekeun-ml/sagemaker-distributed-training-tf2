@@ -47,7 +47,7 @@ def train(model, dataset, epoch, initial_lr):
     callbacks = [
         hvd.callbacks.BroadcastGlobalVariablesCallback(0),
         hvd.callbacks.MetricAverageCallback(),
-        hvd.callbacks.LearningRateWarmupCallback(initial_lr, warmup_epochs=3, verbose=1),
+        hvd.callbacks.LearningRateWarmupCallback(initial_lr=initial_lr, warmup_epochs=3, verbose=1),
     ]
 
     if hvd.rank() == 0:
@@ -67,7 +67,7 @@ def train(model, dataset, epoch, initial_lr):
 if __name__ == "__main__":
     lr = 0.001
     batch_size = 64
-    num_epochs = 200
+    num_epochs = 20
 
     hvd.init()
 

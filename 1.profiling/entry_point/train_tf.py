@@ -97,6 +97,5 @@ def main():
     # start the training.
     train(args.batch_size, args.epoch, model, args.enable_bottleneck, args.data_augmentation)
 
-
 if __name__ == "__main__":
     main()
