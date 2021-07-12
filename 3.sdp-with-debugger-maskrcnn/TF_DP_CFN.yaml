@@ -1,0 +1,334 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: CFN template for Amazon Sagemaker Dristributed Training with Data Parallel on TensorFlow-2.4.1
+
+Mappings:
+  CidrMappings:
+    vpc:
+      CIDR: 10.0.0.0/16
+    private-subnet:
+      CIDR: 10.0.2.0/24
+
+Metadata:
+  Author:
+    Description: Deep Engines Team
+  License:
+    Description: >-
+      Copyright 2019 Amazon.com, Inc. and its affiliates. All Rights Reserved.
+
+      Licensed under the Amazon Software License (the "License"). You may not
+      use this file except in compliance with the License. A copy of the License
+      is located at
+
+      http://aws.amazon.com/asl/
+
+      or in the "license" file accompanying this file. This file is distributed
+      on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+      express or implied. See the License for the specific language governing
+      permissions and limitations under the License.
+
+Outputs:
+  awsRegionId:
+    Description: The AWS Region ID your template was launched in
+    Value:
+      Ref: 'AWS::Region'
+  privateSubnet:
+    Description: Private subnet
+    Value:
+      Ref: privateSubnet
+  vpc:
+    Description: The VPC
+    Value:
+      Ref: vpc
+  vpcSecurityGroup:
+    Description: vpc security group
+    Value:
+      Ref: instanceSecurityGroup
+  instanceRole:
+    Description: Instance Role
+    Value:
+      Ref: instanceRole
+  FileSystemId:
+    Description: FSx Lustre FS ID
+    Value: !Ref S3LinkedLustreFS
+  S3Endpoint:
+    Description: VPC Endpoint for S3
+    Value: !Ref S3Endpoint
+
+Parameters:
+  sourceCidr:
+    Default: 0.0.0.0/0
+    Description: Optional - CIDR/IP range for access
+    Type: String
+  NotebookName:
+    Type: String
+    Default: TF-DDP-Workshop
+    Description: Enter the name of the SageMaker notebook instance.
+  VolumeSize:
+    Type: Number
+    Default: 100
+    MinValue: 5
+    MaxValue: 16384
+    ConstraintDescription: Must be an integer between 5 (GB) and 16384 (16 TB).
+    Description: Enter the size of the EBS volume in GB.
+  NotebookInstanceType:
+     Type: String
+     Default: ml.t2.xlarge
+     Description: Enter the SageMaker notebook instance type.
+  PublicS3Bucket:
+     Type: String
+     Default: 's3://ee-assets-prod-us-east-1/modules/75e5dde6cf204eedb24191ad8240656f/v1/coco_dataset'
+     Description: Public S3 bucket for coco dataset
+
+Resources:
+  S3Bucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+        BucketName: !Sub 'sagemaker-${AWS::Region}-${AWS::AccountId}'
+
+  instanceRole:
+    Description: Instance Role for Sagemaker and FsxLustre
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "sagemaker.amazonaws.com"
+                - "fsx.amazonaws.com"
+                - "s3.data-source.lustre.fsx.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AmazonSageMakerFullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonS3FullAccess'
+        - 'arn:aws:iam::aws:policy/IAMFullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonFSxFullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess'
+      RoleName: "tf2-sm-ddp"
+    Type: "AWS::IAM::Role"
+
+  instanceSecurityGroup:
+    DependsOn:
+      - vpc
+    Properties:
+      GroupDescription: Allow 988 for Lustre
+      SecurityGroupIngress:
+        - CidrIp:
+            Ref: sourceCidr
+          FromPort: 988
+          IpProtocol: tcp
+          ToPort: 988
+        - CidrIp: 0.0.0.0/0
+          FromPort: 1021
+          IpProtocol: tcp
+          ToPort: 1021
+        - CidrIp: 0.0.0.0/0
+          FromPort: 1022
+          IpProtocol: tcp
+          ToPort: 1022
+        - CidrIp: 0.0.0.0/0
+          FromPort: 1023
+          IpProtocol: tcp
+          ToPort: 1023
+        - CidrIp: 0.0.0.0/0
+          FromPort: 22
+          IpProtocol: tcp
+          ToPort: 22
+        - CidrIp: 0.0.0.0/0
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+        - CidrIp: 0.0.0.0/0
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+        - CidrIp: 0.0.0.0/0
+          FromPort: 7592
+          IpProtocol: tcp
+          ToPort: 7592
+        - CidrIp: 0.0.0.0/0
+          FromPort: -1
+          IpProtocol: -1
+          ToPort: -1
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          FromPort: 988
+          IpProtocol: tcp
+          ToPort: 988
+        - CidrIp: 0.0.0.0/0
+          FromPort: 1021
+          IpProtocol: tcp
+          ToPort: 1021
+        - CidrIp: 0.0.0.0/0
+          FromPort: 1022
+          IpProtocol: tcp
+          ToPort: 1022
+        - CidrIp: 0.0.0.0/0
+          FromPort: 1023
+          IpProtocol: tcp
+          ToPort: 1023
+        - CidrIp: 0.0.0.0/0
+          FromPort: 22
+          IpProtocol: tcp
+          ToPort: 22
+        - CidrIp: 0.0.0.0/0
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+        - CidrIp: 0.0.0.0/0
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+        - CidrIp: 0.0.0.0/0
+          FromPort: 7592
+          IpProtocol: tcp
+          ToPort: 7592
+        - CidrIp: 0.0.0.0/0
+          FromPort: -1
+          IpProtocol: -1
+          ToPort: -1
+      VpcId:
+        Ref: vpc
+    Type: 'AWS::EC2::SecurityGroup'
+
+  privateSubnet:
+    Properties:
+      AvailabilityZone: !Sub ${AWS::Region}c
+      CidrBlock:
+        Fn::FindInMap:
+        - CidrMappings
+        - private-subnet
+        - CIDR
+      Tags:
+      - Key: Name
+        Value: private subnet
+      VpcId:
+        Ref: vpc
+    Type: AWS::EC2::Subnet
+
+  privateRouteTable:
+    DependsOn:
+      - vpc
+    Properties:
+      Tags:
+        - Key: Name
+          Value: private route table
+      VpcId:
+        Ref: vpc
+    Type: 'AWS::EC2::RouteTable'
+
+  privateSubnet1RouteTableAssociation:
+    DependsOn:
+    - privateRouteTable
+    - privateSubnet
+    Properties:
+      RouteTableId:
+        Ref: privateRouteTable
+      SubnetId:
+        Ref: privateSubnet
+    Type: AWS::EC2::SubnetRouteTableAssociation
+
+  vpc:
+    Properties:
+      CidrBlock:
+        'Fn::FindInMap':
+          - CidrMappings
+          - vpc
+          - CIDR
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: VPC
+    Type: 'AWS::EC2::VPC'
+
+  NotebookLifecycle:
+    Type: 'AWS::SageMaker::NotebookInstanceLifecycleConfig'
+    Properties:
+      NotebookInstanceLifecycleConfigName: jupyter-lifecycle-config
+      OnStart:
+        - Content:
+            'Fn::Base64': !Sub |
+              #!/bin/bash
+              set -e
+              FILE="/home/ec2-user/SageMaker/tf-ddp-workshop"
+              echo "--- before clone ---"
+              if test -d "$FILE"; then
+                echo "$FILE exists."
+              else
+                git clone -b master "https://github.com/mullue/tf2-sm-ddp.git" /home/ec2-user/SageMaker/tf-ddp-workshop
+                ls -al
+                whoami
+              fi
+              echo "--- after clone ---"
+              chown ec2-user -R $FILE
+              echo "--- check the owner of resoruces! ---"
+              ls -al $FILE
+              echo "-----Sync of coco dataset from S3 public bucket----"
+              ##sync
+              aws s3 sync ${PublicS3Bucket}/train s3://sagemaker-${AWS::Region}-${AWS::AccountId}/coco_dataset/train/
+              aws s3 sync ${PublicS3Bucket}/model s3://sagemaker-${AWS::Region}-${AWS::AccountId}/coco_dataset/model/
+              aws s3 sync ${PublicS3Bucket}/annotations s3://sagemaker-${AWS::Region}-${AWS::AccountId}/coco_dataset/annotations/
+              cd $FILE
+              aws s3 cp ${PublicS3Bucket}/tf2-mask-rcnn-ddp2.tar.gz ./tf2-mask-rcnn-ddp2.tar.gz 
+              docker image load -i tf2-mask-rcnn-ddp2.tar.gz
+
+  NotebookInstance:
+    DependsOn:
+      - S3Bucket
+    Type: 'AWS::SageMaker::NotebookInstance'
+    Properties:
+      InstanceType: !Ref NotebookInstanceType
+      NotebookInstanceName: !Ref NotebookName
+      DirectInternetAccess: Enabled
+      SubnetId: !Ref privateSubnet
+      SecurityGroupIds:
+        - !Ref instanceSecurityGroup
+      RoleArn: !GetAtt instanceRole.Arn
+      VolumeSizeInGB: !Ref VolumeSize
+      LifecycleConfigName: !GetAtt NotebookLifecycle.NotebookInstanceLifecycleConfigName
+
+  S3LinkedLustreFS:
+    DependsOn:
+      - instanceSecurityGroup
+      - privateSubnet
+      - S3Bucket
+    Type: AWS::FSx::FileSystem
+    Properties:
+      FileSystemType: "LUSTRE"
+      StorageCapacity: 1200
+      SubnetIds: [!Ref privateSubnet]
+      SecurityGroupIds: [!Ref instanceSecurityGroup]
+      Tags:
+        - Key: "Name"
+          Value: "TF-DDP-Workshop"
+      LustreConfiguration:
+        AutoImportPolicy: "NEW"
+        CopyTagsToBackups: true
+        DeploymentType: "PERSISTENT_1"
+        PerUnitStorageThroughput: 200
+        DataCompressionType: "NONE"
+        ImportPath: !Sub s3://sagemaker-${AWS::Region}-${AWS::AccountId}
+        ExportPath: !Sub s3://sagemaker-${AWS::Region}-${AWS::AccountId}/.
+
+  S3Endpoint:
+    DependsOn:
+      - vpc
+      - privateSubnet
+      - privateRouteTable
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action: '*'
+            Resource: '*'
+      RouteTableIds:
+        - !Ref privateRouteTable
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+      VpcId: !Ref vpc
