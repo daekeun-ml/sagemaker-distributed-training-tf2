@@ -21,7 +21,7 @@
 - [1. SageMaker Debugger Profiler](1.profiling)
   - 추천 조합: `low_batch_size.ipynb`, `tf-resnet-profiling-multi-gpu-multi-node.ipynb` 수행 (약 90분)
 - [2. SageMaker Distributed Data Parallelism w/ Debugger Profiler - Fashion MNIST dataset](2.sdp-with-debugger-fashion-mnist)
-- [3. SageMaker Distributed Data Parallelism w/ Debugger Profiler - COCO 2017 dataset](3.sdp-with-debugger-maskrcnn)
+- [3. SageMaker Distributed Data Parallelism w/ Debugger Profiler - COCO 2017 dataset](3.sdp-with-debugger-coco2017-maskrcnn)
   
 ## References
 - TensorFlow Profiling: https://github.com/aws/amazon-sagemaker-examples/tree/master/sagemaker-debugger/tensorflow_profiling 
