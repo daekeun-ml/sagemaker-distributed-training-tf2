@@ -35,7 +35,7 @@ if [ $? -ne 0 ]; then
 fi
 
 $(aws ecr get-login --no-include-email --region us-west-2  --registry-ids 763104351884)
-# docker build ${DIR}/ -t ${image} -f ${DIR}/Dockerfile  --build-arg region=${region}
+docker build ${DIR}/ -t ${image} -f ${DIR}/Dockerfile  --build-arg region=${region}
 docker tag ${image} ${fullname}
 
 # Get the login command from ECR and execute it directly
